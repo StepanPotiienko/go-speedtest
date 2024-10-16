@@ -1,65 +1,39 @@
 package main
 
 import (
-  "github.com/prometheus-community/pro-bing"
+	"github.com/showwin/speedtest-go/speedtest"
   "fmt"
-  "os"
-  "os/signal"
 )
 
-func OnRecieve(pkt *probing.Packet) {
-  fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v\n",
-    pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt)
-}
-
-func OnDuplicateRecieve(pkt *probing.Packet) {
-  fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v (DUP!)\n",
-    pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
-}
-
-func OnFinish(stats *probing.Statistics) {
-  fmt.Printf("\n--- %s ping statistics ---\n", stats.Addr)
-  fmt.Printf("%d packets transmitted, %d packets received, %v%% packet loss\n",
-    stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss)
-  fmt.Printf("round-trip min/avg/max/stddev = %v/%v/%v/%v\n",
-    stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt)
-}
-
 func main()  {
-  var server string
-  fmt.Printf("Enter host name: ")
-  fmt.Scan(&server)
+  var speedTestClient = speedtest.New()
+  var serverID int 
 
-  pinger, err := probing.NewPinger(server)
-  c := make(chan os.Signal, 1)
-  signal.Notify(c, os.Interrupt)
-
-  go func() {
-    for _ = range c {
-      pinger.Stop()
-    }
-  }()
-
-  if err != nil {
-    panic(err)
+  serverList, _ := speedTestClient.FetchServers()
+  for _, s := range serverList {
+    fmt.Printf("%s\n", s)
   }
 
-  pinger.OnRecv = func(pkt *probing.Packet) {
-    OnRecieve(pkt)
+  fmt.Printf("Enter id of the server you want to connect to (or leave 0 for auto): ")
+  fmt.Scan(&serverID)
+
+  if serverID == 0 {
+    // Store it as a variable for future reference
+    var autoServerID string = serverList[0].ID[:5]
+    serverFetch, _ := speedTestClient.FetchServerByID(autoServerID)
+
+    fmt.Printf("Connecting to %s", serverFetch)
   }
 
-  pinger.OnDuplicateRecv = func(pkt *probing.Packet) {
-    OnDuplicateRecieve(pkt)
-  }
+  targets, _ := serverList.FindServer([]int{serverID})
 
-  pinger.OnFinish = func(stats *probing.Statistics) {
-    OnFinish(stats)
-  }
-
-  fmt.Printf("PING %s (%s):\n", pinger.Addr(), pinger.IPAddr())
-  err = pinger.Run()
-  if err != nil {
-    panic(err)
+  fmt.Println("Wait while we do the magic...")
+  for _, s := range targets {
+    s.PingTest(nil)
+		s.DownloadTest()
+		s.UploadTest()
+		fmt.Printf("Latency: %s, Download Speed: %s, Upload Speed: %s\n", s.Latency, s.DLSpeed, s.ULSpeed)
+		s.Context.Reset() 
   }
 }
 
