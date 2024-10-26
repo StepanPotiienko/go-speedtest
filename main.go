@@ -9,7 +9,7 @@ import (
 )
 
 func ensureConnected() (connected bool) {
-	serverList := [...]string{
+	serverList := [3]string{
 		"http://clients3.google.com/generate_204",
 		"https://google.com",
 		"https://example.com",
@@ -48,7 +48,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverList, _ := speedTestClient.FetchServers()
+	serverList, err := speedTestClient.FetchServers()
+	if err != nil {
+		fmt.Printf("An error ocurred while fetching servers: %s", err)
+		os.Exit(1)
+	}
+
 	for _, s := range serverList {
 		fmt.Printf("%s\n", s)
 	}
@@ -56,18 +61,25 @@ func main() {
 	fmt.Printf(
 		"Enter id of the server you want to connect to (or leave 0 for auto): ",
 	)
-
 	fmt.Scan(&serverID)
 
 	if serverID == 0 {
 		// Store it as a variable for future reference
 		var autoServerID string = serverList[0].ID[:5]
-		serverFetch, _ := speedTestClient.FetchServerByID(autoServerID)
+		serverFetch, err := speedTestClient.FetchServerByID(autoServerID)
+		if err != nil {
+			fmt.Printf("Error while fetching the server details: %s", err)
+			os.Exit(1)
+		}
 
 		fmt.Printf("Connecting to %s\n", serverFetch)
 	}
 
-	targets, _ := serverList.FindServer([]int{serverID})
+	targets, err := serverList.FindServer([]int{serverID})
+	if err != nil {
+		fmt.Printf("Could not find the server: %s", err)
+		os.Exit(1)
+	}
 
 	fmt.Println("Wait while we do the magic...")
 	for _, s := range targets {
@@ -80,6 +92,7 @@ func main() {
 			s.DLSpeed,
 			s.ULSpeed,
 		)
+
 		s.Context.Reset()
 	}
 }
