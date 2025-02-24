@@ -42,3 +42,4 @@ else
 fi
 
 echo "Thank you for installing Go Speedtool."
+echo "Please restart your PC for the command to work properly."
